@@ -2,6 +2,10 @@ from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
+import json
 
 app = FastAPI()
 
@@ -15,8 +19,154 @@ app.add_middleware(
 
 app.mount("/images", StaticFiles(directory="images"), name="images")
 
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+valid_access_code = os.getenv("VALID_ACCESS_CODE")
+
 @app.get("/api/tours")
-def get_tours(location: str = Query(None)):
+def get_tours(
+  location: str = Query(None),
+  access_code: str = Query(None)
+):
+  if access_code == valid_access_code:
+    return get_tours_from_open_ai(location)
+  else:
+    return get_tours_hardcoding(location)
+  
+
+@app.get("/api/destinations")
+def get_destinations():
+  destinations = [
+    {
+        "name": "한라산",
+        "code": "한라산",
+        "image": "http://localhost:8000/images/hallasan.jpg",
+        "description": "계절마다 다른 풍경을 보여주는 제주도의 상징, 한라산"
+    },
+    {
+        "name": "우도",
+        "code": "우도",
+        "image": "http://localhost:8000/images/udo.jpg",
+        "description": "제주 바다 너머 하얀 백사장과 검은 현무암이 어우러진 섬, 우도"
+    },
+    {
+        "name": "협재 해변",
+        "code": "협재 해변",
+        "image": "http://localhost:8000/images/hyeopjae.jpg",
+        "description": "맑고 에메랄드빛 바다, 조용하고 아름다운 제주 협재 해변"
+    }
+  ]
+  return JSONResponse(content=destinations)
+
+def get_tours_from_open_ai(location: str = None) -> JSONResponse:
+  prompt = f"""
+  마이리얼트립에서 제주도의 {location}을 포함하는 여행 상품을 최대 10개 추천해줘.
+
+  아래 설명을 참고해서, 응답을 JSON 형식으로 생성해줘. 설명은 예시가 아니라 응답 필드의 명세야.
+  구조에 맞는 실제 예시 데이터를 포함한 JSON을 생성해줘.
+  응답은 반드시 ``` 코드 블록 없이 JSON만 순수하게 출력해줘.
+
+  출력에는 구조에 맞는 실제 예시 데이터를 포함해줘.  
+  filter.options[].value 값은 반드시 items[].attributes[key]의 값과 일치해야 해.
+  attributes 에 포함되는 모든 value는 반드시 string 타입이어야 하며, 숫자/날짜/불리언 등의 값도 string으로 변환해서 제공해야 해.
+
+  [응답 구조 설명]
+  - 실제 response의 id
+  - items: 여행 상품 배열
+    - item: 여행 정보를 담는 객체
+      - title: 여행 상품의 제목
+      - link: 상품 링크
+      - course: 여행 코스 설명
+      - price: 여행 상품 가격 (숫자)
+      - region: 여행 상품의 지역 (지번 기준, 읍/면/리까지만)
+      - attributes: 세부 정보 객체
+        - location: 실제 장소 (게시글에 적힌 정확한 위치)
+        - operating_hour: 운영 시간
+        - 기타 필요한 세부 정보도 포함 가능
+
+  - filters: 필터 항목 배열
+    - filter: 공통 속성 기반 필터 항목
+      - key: attributes 내 필드 이름
+      - label: 사용자에게 보여줄 필터 이름
+      - type: single_select 또는 multi_select
+      - options: 선택 가능한 옵션들
+        - option:
+          - label: 사용자에게 보여줄 옵션 이름
+          - value: 실제 attributes의 값과 일치하는 값
+
+  [응답 예시]
+  {{
+    "filters": [
+      {{
+        "key": "duration",
+        "label": "소요 시간",
+        "type": "single_select",
+        "options": [
+          {{
+            "label": "1시간",
+            "value": "1시간"
+          }},
+          {{
+            "label": "2시간",
+            "value": "2시간"
+          }}
+        ]
+      }}
+    ],
+    "items": [
+      {{
+        "title": "[협재] 스튜디오/단체 - 사진작가와 함께하는 협재해변 산책(프라이빗 스냅)",
+        "link": "https://www.myrealtrip.com/offers/72765",
+        "course": "야자수 길 → 협재 에메랄드빛 해변 스냅 트래킹",
+        "price": 150000,
+        "region": "제주시 한림읍",
+        "attributes": {{
+          "location": "제주시 한림읍 협재리 해변 산책로",
+          "operating_hour": "시간 협의",
+          "duration": "1시간",
+          "group_type": "프라이빗 또는 소규모 그룹",
+          "photographer": "스튜디오 사진작가 포함"
+        }}
+      }},
+      {{
+        "title": "[협재] 라탄 공예 제주하면 떠오르는 한라봉 무드등 만들기 원데이 클래스",
+        "link": "https://www.myrealtrip.com/guides/18585",
+        "course": "협재 인근 라탄공방에서 무드등 제작 + 소품샵 관람",
+        "price": 70000,
+        "region": "제주시 한림읍",
+        "attributes": {{
+          "location": "제주시 한림읍 옹포리 협재 해수욕장 근처 라탄공방",
+          "operating_hour": "10:30 - 20:00",
+          "duration": "2시간",
+          "closed_days": "매주 화요일 휴무",
+          "class_type": "원데이 클래스",
+          "includes": "재료, 포토존, 보조 도구 제공"
+        }}
+      }}
+    ]
+  }}
+  """
+
+  openai_response = client.responses.create(
+    model="gpt-4o",
+    tools=[{"type": "web_search_preview"}],
+    input=prompt
+  )
+
+  try:
+    print(openai_response.id)
+    print(openai_response.output_text)
+    return JSONResponse(content=openai_response.output_text)
+  except Exception as e:
+    return JSONResponse(
+      status_code=500,
+      content={
+          "error": "AI 응답 파싱 실패",
+          "raw_output": openai_response.output_text
+      }
+    )
+
+def get_tours_hardcoding(location: str = None) -> JSONResponse:
   if location == "협재 해변":
     response = {
       "filters": [
@@ -317,27 +467,3 @@ def get_tours(location: str = Query(None)):
   ]
   response["filters"] = common_filters + response["filters"]
   return JSONResponse(content=response)
-
-@app.get("/api/destinations")
-def get_destinations():
-  destinations = [
-    {
-        "name": "한라산",
-        "code": "한라산",
-        "image": "http://localhost:8000/images/hallasan.jpg",
-        "description": "계절마다 다른 풍경을 보여주는 제주도의 상징, 한라산"
-    },
-    {
-        "name": "우도",
-        "code": "우도",
-        "image": "http://localhost:8000/images/udo.jpg",
-        "description": "제주 바다 너머 하얀 백사장과 검은 현무암이 어우러진 섬, 우도"
-    },
-    {
-        "name": "협재 해변",
-        "code": "협재 해변",
-        "image": "http://localhost:8000/images/hyeopjae.jpg",
-        "description": "맑고 에메랄드빛 바다, 조용하고 아름다운 제주 협재 해변"
-    }
-  ]
-  return JSONResponse(content=destinations)
