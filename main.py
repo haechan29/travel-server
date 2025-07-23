@@ -299,6 +299,23 @@ def get_tours(location: str = Query(None)):
       "filters": [],
       "items": [],
     }
+
+  common_filters = [
+    {
+      "key": "price",
+      "label": "가격",
+      "type": "price",
+    },
+    {
+      "key": "region",
+      "label": "위치",
+      "type": "region",
+      "options": [
+        { "label": "제주시 서귀포시 성산읍", "value": "제주시 서귀포시 성산읍" }
+      ]
+    }
+  ]
+  response["filters"] = common_filters + response["filters"]
   return JSONResponse(content=response)
 
 @app.get("/api/destinations")
