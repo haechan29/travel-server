@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Query
+from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,11 +11,11 @@ import json
 app = FastAPI()
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React 앱 주소
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+  CORSMiddleware,
+  allow_origins=["http://localhost:3000"],  # React 앱 주소
+  allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"],
 )
 
 app.mount("/images", StaticFiles(directory="images"), name="images")
@@ -22,6 +23,16 @@ app.mount("/images", StaticFiles(directory="images"), name="images")
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 valid_access_code = os.getenv("VALID_ACCESS_CODE")
+
+class CodeRequest(BaseModel):
+  access_code: str
+
+@app.post("/api/verify-code")
+def verify_code(request: CodeRequest):
+  if request.access_code == valid_access_code:
+    return JSONResponse(content={"valid": True, "message": "유효한 코드입니다."})
+  else:
+    return JSONResponse(content={"valid": False, "message": "코드가 유효하지 않습니다."})
 
 @app.get("/api/tours")
 def get_tours(
