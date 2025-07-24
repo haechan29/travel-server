@@ -178,7 +178,7 @@ def get_tours_from_open_ai(location: str = None) -> JSONResponse:
   try:
     return JSONResponse(content={
       "id": openai_response.id,
-      "output": openai_response.output_text
+      "output": json.loads(openai_response.output_text)
     })
   except Exception as e:
     return JSONResponse(
@@ -513,7 +513,7 @@ def get_continued_tours_from_open_ai(
   try:
     return JSONResponse(content={
       "id": openai_response.id,
-      "output": openai_response.output_text
+      "output": json.loads(openai_response.output_text)
     })
   except Exception as e:
     return JSONResponse(
