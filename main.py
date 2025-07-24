@@ -82,8 +82,7 @@ def get_destinations():
 def get_tours_from_open_ai(location: str = None) -> JSONResponse:
   prompt = f"""
   마이리얼트립에서 제주도의 {location}을 포함하는 여행 상품을 최대 10개 추천해줘.
-  2025년 이후의 리뷰가 있는 상품만 추천해줘.
-
+  
   아래 설명을 참고해서, 응답을 JSON 형식으로 생성해줘. 설명은 예시가 아니라 응답 필드의 명세야.
   구조에 맞는 실제 예시 데이터를 포함한 JSON을 생성해줘.
   응답은 반드시 ``` 코드 블록 없이 JSON만 순수하게 출력해줘.
@@ -91,6 +90,7 @@ def get_tours_from_open_ai(location: str = None) -> JSONResponse:
   출력에는 구조에 맞는 실제 예시 데이터를 포함해줘.  
   filter.options[].value 값은 반드시 items[].attributes[key]의 값과 일치해야 해.
   attributes 에 포함되는 모든 value는 반드시 string 타입이어야 하며, 숫자/날짜/불리언 등의 값도 string으로 변환해서 제공해야 해.
+  상품이 하나도 없다면 items와 filter이 빈 배열인 응답을 내려줘.
 
   [응답 구조 설명]
   - 실제 response의 id
@@ -176,22 +176,6 @@ def get_tours_from_open_ai(location: str = None) -> JSONResponse:
   )
 
   try:
-    common_filters = [
-      {
-        "key": "price",
-        "label": "가격",
-        "type": "price",
-      },
-      {
-        "key": "region",
-        "label": "위치",
-        "type": "region",
-        "options": [
-          { "label": "제주시 서귀포시 성산읍", "value": "제주시 서귀포시 성산읍" }
-        ]
-      }
-    ]
-    openai_response.output_text["filters"] = common_filters + openai_response.output_text["filters"]
     return JSONResponse(content={
       "id": openai_response.id,
       "output": openai_response.output_text
@@ -527,22 +511,6 @@ def get_continued_tours_from_open_ai(
   )
 
   try:
-    common_filters = [
-      {
-        "key": "price",
-        "label": "가격",
-        "type": "price",
-      },
-      {
-        "key": "region",
-        "label": "위치",
-        "type": "region",
-        "options": [
-          { "label": "제주시 서귀포시 성산읍", "value": "제주시 서귀포시 성산읍" }
-        ]
-      }
-    ]
-    openai_response.output_text["filters"] = common_filters + openai_response.output_text["filters"]
     return JSONResponse(content={
       "id": openai_response.id,
       "output": openai_response.output_text
