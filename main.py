@@ -43,8 +43,18 @@ def get_tours(
     return get_tours_from_open_ai(location)
   else:
     return get_tours_hardcoding(location)
-  
 
+@app.get("/api/tours/continue")
+def get_continued_tours(
+  access_code: str = Query(None),
+  previous_response_id: str = Query(None),
+  condition: str = Query(None)
+) -> JSONResponse:
+  if access_code == valid_access_code:
+    return get_continued_tours_from_open_ai(previous_response_id, condition)
+  else:
+    return get_continued_tours_hardcoding()
+  
 @app.get("/api/destinations")
 def get_destinations():
   destinations = [
@@ -72,6 +82,7 @@ def get_destinations():
 def get_tours_from_open_ai(location: str = None) -> JSONResponse:
   prompt = f"""
   마이리얼트립에서 제주도의 {location}을 포함하는 여행 상품을 최대 10개 추천해줘.
+  2025년 이후의 리뷰가 있는 상품만 추천해줘.
 
   아래 설명을 참고해서, 응답을 JSON 형식으로 생성해줘. 설명은 예시가 아니라 응답 필드의 명세야.
   구조에 맞는 실제 예시 데이터를 포함한 JSON을 생성해줘.
@@ -165,6 +176,22 @@ def get_tours_from_open_ai(location: str = None) -> JSONResponse:
   )
 
   try:
+    common_filters = [
+      {
+        "key": "price",
+        "label": "가격",
+        "type": "price",
+      },
+      {
+        "key": "region",
+        "label": "위치",
+        "type": "region",
+        "options": [
+          { "label": "제주시 서귀포시 성산읍", "value": "제주시 서귀포시 성산읍" }
+        ]
+      }
+    ]
+    openai_response.output_text["filters"] = common_filters + openai_response.output_text["filters"]
     return JSONResponse(content={
       "id": openai_response.id,
       "output": openai_response.output_text
@@ -452,6 +479,227 @@ def get_tours_hardcoding(location: str = None) -> JSONResponse:
             "duration": "12시간",
             "equipment_included": "아이젠, 스패츠, 핫팩 등",
             "ot": "사전 OT zoom 포함"
+          }
+        }
+      ]
+    }
+  else:
+    response = {
+      "filters": [],
+      "items": [],
+    }
+
+  common_filters = [
+    {
+      "key": "price",
+      "label": "가격",
+      "type": "price",
+    },
+    {
+      "key": "region",
+      "label": "위치",
+      "type": "region",
+      "options": [
+        { "label": "제주시 서귀포시 성산읍", "value": "제주시 서귀포시 성산읍" }
+      ]
+    }
+  ]
+  response["filters"] = common_filters + response["filters"]
+  return JSONResponse(content={
+    "id": 0,
+    "output": response
+  })
+
+def get_continued_tours_from_open_ai(
+  previous_response_id: str,
+  condition: str
+) -> JSONResponse:
+  prompt = f"""
+  아까의 적용 조건에 다음 조건을 추가해서 다시 최대 10개의 여행상품을 추천해줘.
+  {condition}
+  """
+
+  openai_response = client.responses.create(
+    model="gpt-4o",
+    previous_response_id=previous_response_id,
+    tools=[{"type": "web_search_preview"}],
+    input=prompt
+  )
+
+  try:
+    common_filters = [
+      {
+        "key": "price",
+        "label": "가격",
+        "type": "price",
+      },
+      {
+        "key": "region",
+        "label": "위치",
+        "type": "region",
+        "options": [
+          { "label": "제주시 서귀포시 성산읍", "value": "제주시 서귀포시 성산읍" }
+        ]
+      }
+    ]
+    openai_response.output_text["filters"] = common_filters + openai_response.output_text["filters"]
+    return JSONResponse(content={
+      "id": openai_response.id,
+      "output": openai_response.output_text
+    })
+  except Exception as e:
+    return JSONResponse(
+      status_code=500,
+      content={
+          "error": "AI 응답 파싱 실패",
+          "raw_output": openai_response.output_text
+      }
+    )
+
+def get_continued_tours_hardcoding() -> JSONResponse:
+  if location == "협재 해변":
+    response = {
+      "filters": [
+        {
+          "key": "duration",
+          "label": "소요 시간",
+          "type": "single_select",
+          "options": [
+            { "label": "60분", "value": "60분" },
+          ]
+        },
+        {
+          "key": "operating_hour",
+          "label": "운영 시간/만나는 시간",
+          "type": "single_select",
+          "options": [
+            { "label": "오후 5시", "value": "오후 5시" },
+          ]
+        }
+      ],
+      "items": [
+        {
+          "title": "[협재] 제주의 일몰과 불멍의 매력 속으로!",
+          "link": "https://www.myrealtrip.com/offers/100305",
+          "course": "협재해수욕장 주차장 → 일몰 감상 후 불멍",
+          "price": 90000,
+          "region": "제주시 한림읍",
+          "attributes": {
+            "location": "협재해수욕장 주차장",
+            "operating_hour": "오후 5시",
+            "duration": "60분",
+            "group_type": "프라이빗",
+            "equipment": "담요, 모닥불 세트 제공"
+          }
+        }
+      ]
+    }
+  elif location == "우도":
+    response = {
+      "filters": [
+        {
+          "key": "type",
+          "label": "상품 유형",
+          "type": "single_select",
+          "options": [
+            { "label": "패키지 투어", "value": "패키지 투어" },
+            { "label": "버스/티켓", "value": "버스/티켓" }
+          ]
+        },
+        {
+          "key": "duration",
+          "label": "소요 시간",
+          "type": "single_select",
+          "options": [
+            { "label": "5시간", "value": "5시간" },
+            { "label": "시간 제한 없음", "value": "시간 제한 없음" }
+          ]
+        },
+        {
+          "key": "includes",
+          "label": "포함 사항",
+          "type": "multi_select",
+          "options": [
+            { "label": "왕복 승선료 포함", "value": "왕복 승선료 포함" },
+            { "label": "순환버스 티켓", "value": "순환버스 티켓" },
+          ]
+        }
+      ],
+      "items": [
+        {
+          "title": "[우도] 제주도 우도 1일 버스여행 원데이 패키지",
+          "link": "https://experiences.myrealtrip.com/products/3881278",
+          "course": "우도 8경 탐방 → 녹차족욕",
+          "price": 33800,
+          "region": "제주시",
+          "attributes": {
+            "type": "패키지 투어",
+            "duration": "5시간",
+            "includes": "왕복 승선료 포함",
+            "meeting_point": "제주공항, 탑동 등 픽업",
+            "operating_hour": "10:30~15:30",
+            "group_size": "단체"
+          }
+        },
+        {
+          "title": "[우도] 자유롭게 내리고 타는 우도 해안도로 순환버스 티켓",
+          "link": "https://experiences.myrealtrip.com/products/3827776",
+          "course": "우도 해안도로 전 구간 자유탐방",
+          "price": 5000,
+          "region": "제주시 우도면",
+          "attributes": {
+            "type": "버스/티켓",
+            "duration": "시간 제한 없음",
+            "includes": "순환버스 티켓",
+            "operating_hour": "도항선 첫배~막배",
+            "notes": "홀수일/짝수일 방향 다름"
+          }
+        }
+      ]
+    }
+  elif location == "한라산":
+    response = {
+      "filters": [
+        {
+          "key": "course_type",
+          "label": "코스 유형",
+          "type": "single_select",
+          "options": [
+            {"label": "영실 코스", "value": "영실 코스"}
+          ]
+        },
+        {
+          "key": "difficulty",
+          "label": "난이도",
+          "type": "single_select",
+          "options": [
+            {"label": "초보자용", "value": "초보자용"}
+          ]
+        },
+        {
+          "key": "duration",
+          "label": "소요 시간",
+          "type": "single_select",
+          "options": [
+            {"label": "4시간", "value": "4시간"},
+          ]
+        }
+      ],
+      "items": [
+        {
+          "title": "[한라산] 등산 비기너를 위한 한라산 투어 (영실 코스)",
+          "link": "https://experiences.myrealtrip.com/products/3529682",
+          "course": "영실 탐방로 입구 → 윗세오름 대피소 왕복",
+          "price": 30000,
+          "region": "제주시",
+          "attributes": {
+            "location": "영실 탐방로 입구 ~ 윗세오름 대피소",
+            "operating_hour": "08:00~12:00",
+            "course_type": "영실 코스",
+            "difficulty": "초보자용",
+            "duration": "4시간",
+            "group_type": "가이드 포함",
+            "frequency": "매일 진행"
           }
         }
       ]
