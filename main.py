@@ -165,9 +165,10 @@ def get_tours_from_open_ai(location: str = None) -> JSONResponse:
   )
 
   try:
-    print(openai_response.id)
-    print(openai_response.output_text)
-    return JSONResponse(content=openai_response.output_text)
+    return JSONResponse(content={
+      "id": openai_response.id,
+      "output": openai_response.output_text
+    })
   except Exception as e:
     return JSONResponse(
       status_code=500,
@@ -477,4 +478,7 @@ def get_tours_hardcoding(location: str = None) -> JSONResponse:
     }
   ]
   response["filters"] = common_filters + response["filters"]
-  return JSONResponse(content=response)
+  return JSONResponse(content={
+    "id": 0,
+    "output": response
+  })
