@@ -53,7 +53,7 @@ def get_continued_tours(
   if access_code == valid_access_code:
     return get_continued_tours_from_open_ai(previous_response_id, condition)
   else:
-    return get_continued_tours_hardcoding()
+    return get_continued_tours_hardcoding(previous_response_id)
   
 @app.get("/api/destinations")
 def get_destinations():
@@ -489,8 +489,18 @@ def get_tours_hardcoding(location: str = None) -> JSONResponse:
     }
   ]
   response["filters"] = common_filters + response["filters"]
+
+  if location == "협재 해변":
+    id = '1'
+  elif location == "우도":
+    id = '2'
+  elif location == "한라산":
+    id = '3'
+  else:
+    id = '0'
+
   return JSONResponse(content={
-    "id": 0,
+    "id": id,
     "output": response
   })
 
@@ -524,8 +534,8 @@ def get_continued_tours_from_open_ai(
       }
     )
 
-def get_continued_tours_hardcoding() -> JSONResponse:
-  if location == "협재 해변":
+def get_continued_tours_hardcoding(previous_response_id: str) -> JSONResponse:
+  if previous_response_id == '1':
     response = {
       "filters": [
         {
@@ -562,7 +572,7 @@ def get_continued_tours_hardcoding() -> JSONResponse:
         }
       ]
     }
-  elif location == "우도":
+  elif previous_response_id == '2':
     response = {
       "filters": [
         {
@@ -625,7 +635,7 @@ def get_continued_tours_hardcoding() -> JSONResponse:
         }
       ]
     }
-  elif location == "한라산":
+  elif previous_response_id == '3':
     response = {
       "filters": [
         {
@@ -695,6 +705,6 @@ def get_continued_tours_hardcoding() -> JSONResponse:
   ]
   response["filters"] = common_filters + response["filters"]
   return JSONResponse(content={
-    "id": 0,
+    "id": previous_response_id,
     "output": response
   })
